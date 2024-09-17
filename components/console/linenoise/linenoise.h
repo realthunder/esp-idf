@@ -61,6 +61,7 @@ void linenoiseAddCompletion(linenoiseCompletions *, const char *);
 
 int linenoiseProbe(void);
 char *linenoise(const char *prompt);
+char *linenoise_buf(char *buf, size_t buf_size, const char *prompt);
 void linenoiseFree(void *ptr);
 int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);

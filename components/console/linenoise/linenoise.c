@@ -123,6 +123,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <assert.h>
+#include "freertos/FreeRTOS.h"
 #include "linenoise.h"
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -1070,10 +1071,15 @@ int linenoiseProbe(void) {
     /* Switch to non-blocking mode */
     int stdin_fileno = fileno(stdin);
     int flags = fcntl(stdin_fileno, F_GETFL);
-    flags |= O_NONBLOCK;
-    int res = fcntl(stdin_fileno, F_SETFL, flags);
-    if (res != 0) {
-        return -1;
+    int res;
+    if (flags & O_NONBLOCK) {
+        flags = 0;
+    } else {
+        flags |= O_NONBLOCK;
+        res = fcntl(stdin_fileno, F_SETFL, flags);
+        if (res != 0) {
+            return -1;
+        }
     }
     /* Device status request */
     fprintf(stdout, "\x1b[5n");
@@ -1098,10 +1104,12 @@ int linenoiseProbe(void) {
         read_bytes += cb;
     }
     /* Restore old mode */
-    flags &= ~O_NONBLOCK;
-    res = fcntl(stdin_fileno, F_SETFL, flags);
-    if (res != 0) {
-        return -1;
+    if (flags) {
+        flags &= ~O_NONBLOCK;
+        res = fcntl(stdin_fileno, F_SETFL, flags);
+        if (res != 0) {
+            return -1;
+        }
     }
     if (read_bytes < 4) {
         return -2;
@@ -1191,6 +1199,27 @@ char *linenoise(const char *prompt) {
         /* will return an empty (0-length) string */
     } else {
         free(buf);
+        return NULL;
+    }
+    return buf;
+}
+
+char *linenoise_buf(char *buf, size_t buf_size, const char *prompt) {
+    int count = 0;
+    if (buf == NULL) {
+        return NULL;
+    }
+    if (!dumbmode) {
+        count = linenoiseRaw(buf, buf_size, prompt);
+    } else {
+        count = linenoiseDumb(buf, buf_size, prompt);
+    }
+    if (count > 0) {
+        sanitize(buf);
+        count = strlen(buf);
+    } else if (count == 0 && allow_empty) {
+        /* will return an empty (0-length) string */
+    } else {
         return NULL;
     }
     return buf;

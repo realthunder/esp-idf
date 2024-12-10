@@ -14,6 +14,7 @@
 #include "sdkconfig.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
+#include "esp_log.h"
 
 #ifdef CONFIG_VFS_SUPPORT_IO
 #error This file should only be built when CONFIG_VFS_SUPPORT_IO=n
@@ -71,5 +72,6 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct
 
 void esp_vfs_lwip_sockets_register(void)
 {
+    ESP_LOGE("lwip", "%d no_vfs_init", __LINE__);
     /* Doesn't register anything, just a hook to force linking this file */
 }

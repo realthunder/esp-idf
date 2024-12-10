@@ -167,10 +167,6 @@ static void wifi_scan(void)
     uint16_t ap_count = 0;
     memset(ap_info, 0, sizeof(ap_info));
 
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
 #ifdef USE_CHANNEL_BTIMAP
     wifi_scan_config_t *scan_config = (wifi_scan_config_t *)calloc(1,sizeof(wifi_scan_config_t));
     if (!scan_config) {

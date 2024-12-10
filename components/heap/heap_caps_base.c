@@ -72,6 +72,9 @@ HEAP_IRAM_ATTR void heap_caps_free( void *ptr)
     CALL_HOOK(esp_heap_trace_free_hook, ptr);
 }
 
+int heap_logging;
+int _heap_logging;
+
 HEAP_IRAM_ATTR static inline void *aligned_or_unaligned_alloc(multi_heap_handle_t heap, size_t size, size_t alignment, size_t offset) {
     if (alignment<=UNALIGNED_MEM_ALIGNMENT_BYTES) { //alloc and friends align to 32-bit by default
         return multi_heap_malloc(heap, size);
@@ -87,10 +90,14 @@ allocator will align to that value by default.
 */
 HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment, size_t size, uint32_t caps)
 {
+    _heap_logging = heap_logging ? heap_logging++ : 0;
+
+    if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
     void *ret = NULL;
 
     // Alignment, size and caps may need to be modified because of hardware requirements.
     esp_heap_adjust_alignment_to_hw(&alignment, &size, &caps);
+    if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
 
     // remove block owner size to HEAP_SIZE_MAX rather than adding the block owner size
     // to size to prevent overflows.
@@ -121,38 +128,49 @@ HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment
     for (int prio = 0; prio < SOC_MEMORY_TYPE_NO_PRIOS; prio++) {
         //Iterate over heaps and check capabilities at this priority
         heap_t *heap;
+        if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
         SLIST_FOREACH(heap, &registered_heaps, next) {
             if (heap->heap == NULL) {
                 continue;
             }
             if ((heap->caps[prio] & caps) != 0) {
+                if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                 //Heap has at least one of the caps requested. If caps has other bits set that this prio
                 //doesn't cover, see if they're available in other prios.
                 if ((get_all_caps(heap) & caps) == caps) {
                     //This heap can satisfy all the requested capabilities. See if we can grab some memory using it.
                     // If MALLOC_CAP_EXEC is requested but the DRAM and IRAM are on the same addresses (like on esp32c6)
                     // proceed as for a default allocation.
+                    if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                     if ((caps & MALLOC_CAP_EXEC) && !esp_dram_match_iram() && esp_ptr_in_diram_dram((void *)heap->start)) {
                         //This is special, insofar that what we're going to get back is a DRAM address. If so,
                         //we need to 'invert' it (lowest address in DRAM == highest address in IRAM and vice-versa) and
                         //add a pointer to the DRAM equivalent before the address we're going to return.
+                        if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                         ret = aligned_or_unaligned_alloc(heap->heap, MULTI_HEAP_ADD_BLOCK_OWNER_SIZE(size) + 4,
                                                         alignment, MULTI_HEAP_BLOCK_OWNER_SIZE());  // int overflow checked above
+                        if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                         if (ret != NULL) {
+                            if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                             MULTI_HEAP_SET_BLOCK_OWNER(ret);
                             ret = MULTI_HEAP_ADD_BLOCK_OWNER_OFFSET(ret);
+                            if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                             uint32_t *iptr = dram_alloc_to_iram_addr(ret, size + 4);  // int overflow checked above
                             CALL_HOOK(esp_heap_trace_alloc_hook, iptr, size, caps);
+                            if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                             return iptr;
                         }
                     } else {
                         //Just try to alloc, nothing special.
+                        if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc, %d", __LINE__, (int)alignment);
                         ret = aligned_or_unaligned_alloc(heap->heap, MULTI_HEAP_ADD_BLOCK_OWNER_SIZE(size),
                                                         alignment, MULTI_HEAP_BLOCK_OWNER_SIZE());
                         if (ret != NULL) {
+                            if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                             MULTI_HEAP_SET_BLOCK_OWNER(ret);
                             ret = MULTI_HEAP_ADD_BLOCK_OWNER_OFFSET(ret);
                             CALL_HOOK(esp_heap_trace_alloc_hook, ret, size, caps);
+                            if (_heap_logging == 1) ESP_LOGE("heap", "%d alloc", __LINE__);
                             return ret;
                         }
                     }

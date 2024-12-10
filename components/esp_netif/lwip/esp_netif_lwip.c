@@ -517,7 +517,9 @@ static void tcpip_init_done(void *arg)
 
 esp_err_t esp_netif_init(void)
 {
+    ESP_LOGE(TAG, "%d esp netif init", __LINE__);
     if (!sys_thread_tcpip(LWIP_CORE_IS_TCPIP_INITIALIZED)) {
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
 #if CONFIG_LWIP_HOOK_TCP_ISN_DEFAULT
         uint8_t rand_buf[16];
         /*
@@ -530,36 +532,46 @@ esp_err_t esp_netif_init(void)
         esp_fill_random(rand_buf, sizeof(rand_buf));
         lwip_init_tcp_isn(esp_log_timestamp(), rand_buf);
 #endif
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         sys_sem_t init_sem;
         if (sys_sem_new(&init_sem, 0) != ERR_OK) {
             ESP_LOGE(TAG, "esp netif cannot create tcpip_init semaphore");
             return ESP_FAIL;
         }
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
 #if LWIP_TCPIP_CORE_LOCKING
         /* TCPIP thread is not initialized yet,
          * pretend that the calling thread is holder
          * to correctly set up the TCPIP task */
         sys_thread_tcpip(LWIP_CORE_LOCK_MARK_HOLDER);
 #endif
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         tcpip_init(tcpip_init_done, &init_sem);
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         sys_sem_wait(&init_sem);
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         sys_sem_free(&init_sem);
         ESP_LOGD(TAG, "LwIP stack has been initialized");
     }
 
 #if !LWIP_TCPIP_CORE_LOCKING
+    ESP_LOGE(TAG, "%d esp netif init", __LINE__);
     if (!api_sync_sem) {
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         if (ERR_OK != sys_sem_new(&api_sync_sem, 0)) {
             ESP_LOGE(TAG, "esp netif api sync sem init fail");
             return ESP_FAIL;
         }
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
     }
 
     if (!api_lock_sem) {
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
         if (ERR_OK != sys_sem_new(&api_lock_sem, 1)) {
             ESP_LOGE(TAG, "esp netif api lock sem init fail");
             return ESP_FAIL;
         }
+        ESP_LOGE(TAG, "%d esp netif init", __LINE__);
     }
 #endif
 

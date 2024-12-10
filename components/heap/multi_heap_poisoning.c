@@ -240,6 +240,8 @@ void *multi_heap_aligned_alloc_offs(multi_heap_handle_t heap, size_t size, size_
     return data;
 }
 
+extern int _heap_logging;
+
 void *multi_heap_malloc(multi_heap_handle_t heap, size_t size)
 {
     if (!size) {
@@ -250,19 +252,26 @@ void *multi_heap_malloc(multi_heap_handle_t heap, size_t size)
         return NULL;
     }
 
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     multi_heap_internal_lock(heap);
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     poison_head_t *head = multi_heap_malloc_impl(heap, size + POISON_OVERHEAD);
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     uint8_t *data = NULL;
     if (head != NULL) {
+        if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
         data = poison_allocated_region(head, size);
 #ifdef SLOW
+        if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
         /* check everything we got back is FREE_FILL_PATTERN & swap for MALLOC_FILL_PATTERN */
         bool ret = verify_fill_pattern(data, size, true, true, true);
         assert( ret );
 #endif
     }
 
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     multi_heap_internal_unlock(heap);
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     return data;
 }
 

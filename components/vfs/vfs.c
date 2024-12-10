@@ -26,9 +26,9 @@
 #warning CONFIG_LWIP_USE_ONLY_LWIP_SELECT is deprecated: Please use CONFIG_VFS_SUPPORT_SELECT instead
 #endif
 
-#ifdef CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT
-#define LOG_LOCAL_LEVEL ESP_LOG_NONE
-#endif //CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT
+/* #ifdef CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT */
+/* #define LOG_LOCAL_LEVEL ESP_LOG_NONE */
+/* #endif //CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT */
 #include "esp_log.h"
 
 static const char *TAG = "vfs";
@@ -74,9 +74,13 @@ static size_t s_vfs_count = 0;
 
 static fd_table_t s_fd_table[MAX_FDS] = { [0 ... MAX_FDS-1] = FD_TABLE_ENTRY_UNUSED };
 static _lock_t s_fd_table_lock;
+static bool vfs_logging = false;
+
+extern int heap_logging;
 
 esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_vfs_t* vfs, void* ctx, int *vfs_index)
 {
+    if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     if (len != LEN_PATH_PREFIX_IGNORED) {
         /* empty prefix is allowed, "/" is not allowed */
         if ((len == 1) || (len > ESP_VFS_PATH_MAX)) {
@@ -87,7 +91,15 @@ esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_v
             return ESP_ERR_INVALID_ARG;
         }
     }
+    if (vfs_logging) {
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
+        ++heap_logging;
+    }
     vfs_entry_t *entry = (vfs_entry_t*) heap_caps_malloc(sizeof(vfs_entry_t), VFS_MALLOC_FLAGS);
+    if (vfs_logging) {
+        --heap_logging;
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
+    }
     if (entry == NULL) {
         return ESP_ERR_NO_MEM;
     }
@@ -97,6 +109,7 @@ esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_v
             break;
         }
     }
+    if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     if (index == s_vfs_count) {
         if (s_vfs_count >= VFS_MAX_COUNT) {
             free(entry);
@@ -106,11 +119,15 @@ esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_v
     }
     s_vfs[index] = entry;
     if (len != LEN_PATH_PREFIX_IGNORED) {
+        if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         strcpy(entry->path_prefix, base_path); // we have already verified argument length
     } else {
+        if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         bzero(entry->path_prefix, sizeof(entry->path_prefix));
     }
+    if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     memcpy(&entry->vfs, vfs, sizeof(esp_vfs_t));
+    if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     entry->path_prefix_len = len;
     entry->ctx = ctx;
     entry->offset = index;
@@ -119,6 +136,7 @@ esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_v
         *vfs_index = index;
     }
 
+    if (vfs_logging) ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     return ESP_OK;
 }
 
@@ -129,18 +147,27 @@ esp_err_t esp_vfs_register(const char* base_path, const esp_vfs_t* vfs, void* ct
 
 esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd, int max_fd)
 {
+    vfs_logging = true;
+    ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     if (min_fd < 0 || max_fd < 0 || min_fd > MAX_FDS || max_fd > MAX_FDS || min_fd > max_fd) {
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         ESP_LOGD(TAG, "Invalid arguments: esp_vfs_register_fd_range(0x%x, 0x%x, %d, %d)", (int) vfs, (int) ctx, min_fd, max_fd);
         return ESP_ERR_INVALID_ARG;
     }
 
+    ESP_LOGE("lwip", "%d vfs_init", __LINE__);
     int index = -1;
     esp_err_t ret = esp_vfs_register_common("", LEN_PATH_PREFIX_IGNORED, vfs, ctx, &index);
+    ESP_LOGE("lwip", "%d vfs_init", __LINE__);
 
     if (ret == ESP_OK) {
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         _lock_acquire(&s_fd_table_lock);
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         for (int i = min_fd; i < max_fd; ++i) {
+            ESP_LOGE("lwip", "%d vfs_init, %d", __LINE__, i);
             if (s_fd_table[i].vfs_index != -1) {
+                ESP_LOGE("lwip", "%d vfs_init", __LINE__);
                 free(s_vfs[index]);
                 s_vfs[index] = NULL;
                 for (int j = min_fd; j < i; ++j) {
@@ -148,6 +175,7 @@ esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd,
                         s_fd_table[j] = FD_TABLE_ENTRY_UNUSED;
                     }
                 }
+                ESP_LOGE("lwip", "%d vfs_init", __LINE__);
                 _lock_release(&s_fd_table_lock);
                 ESP_LOGD(TAG, "esp_vfs_register_fd_range cannot set fd %d (used by other VFS)", i);
                 return ESP_ERR_INVALID_ARG;
@@ -156,10 +184,13 @@ esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd,
             s_fd_table[i].vfs_index = index;
             s_fd_table[i].local_fd = i;
         }
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
         _lock_release(&s_fd_table_lock);
 
         ESP_LOGW(TAG, "esp_vfs_register_fd_range is successful for range <%d; %d) and VFS ID %d", min_fd, max_fd, index);
     }
+    else
+        ESP_LOGE("lwip", "%d vfs_init", __LINE__);
 
     return ret;
 }

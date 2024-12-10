@@ -14,6 +14,7 @@
 #include <sys/param.h>
 #include "multi_heap.h"
 #include "multi_heap_internal.h"
+#include "esp_log.h"
 
 #if !CONFIG_HEAP_TLSF_USE_ROM_IMPL
 #include "tlsf.h"
@@ -200,6 +201,9 @@ bool multi_heap_is_free(multi_heap_block_handle_t block)
     return block_is_free(block);
 }
 
+extern int _heap_logging;
+void panic_print_str(const char *str);
+
 void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
 {
     if (size == 0 || heap == NULL) {
@@ -207,8 +211,11 @@ void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
     }
 
 
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
     multi_heap_internal_lock(heap);
+    if (_heap_logging == 1) panic_print_str("alloc 1\n");
     void *result = tlsf_malloc(heap->heap_data, size);
+    if (_heap_logging == 1) panic_print_str("alloc 2\n");
     if(result) {
         heap->free_bytes -= tlsf_block_size(result);
         heap->free_bytes -= tlsf_alloc_overhead();
@@ -216,7 +223,9 @@ void *multi_heap_malloc_impl(multi_heap_handle_t heap, size_t size)
             heap->minimum_free_bytes = heap->free_bytes;
         }
     }
+    if (_heap_logging == 1) panic_print_str("alloc 3\n");
     multi_heap_internal_unlock(heap);
+    if (_heap_logging == 1) ESP_LOGE("mheap", "%d alloc", __LINE__);
 
     return result;
 }

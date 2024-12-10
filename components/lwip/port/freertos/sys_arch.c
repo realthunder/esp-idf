@@ -420,16 +420,21 @@ sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, int stacksize
 void
 sys_init(void)
 {
+  ESP_LOGE("lwip", "%d sys_init", __LINE__);
   if (!g_lwip_protect_mutex) {
+    ESP_LOGE("lwip", "%d sys_init", __LINE__);
     if (ERR_OK != sys_mutex_new(&g_lwip_protect_mutex)) {
       ESP_LOGE(TAG, "sys_init: failed to init lwip protect mutex");
     }
   }
+  ESP_LOGE("lwip", "%d sys_init", __LINE__);
 
   // Create the pthreads key for the per-thread semaphore storage
   pthread_key_create(&sys_thread_sem_key, sys_thread_sem_free);
 
+  ESP_LOGE("lwip", "%d sys_init", __LINE__);
   esp_vfs_lwip_sockets_register();
+  ESP_LOGE("lwip", "%d sys_init", __LINE__);
 }
 
 /**
